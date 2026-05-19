@@ -34,25 +34,7 @@ void JS_init(s32 a0, s32 a1, s32 a2)
     classes = RSRC_alloc(a0, a2 * sizeof(JsClass), 0);
 }
 
-// Equivalent, small scheduling problem.
-#if 1
 INCLUDE_ASM("asm/nonmatchings/game/JS", JS_loadClass);
-#else
-JsClass* JS_loadClass(s32 a0)
-{
-    JsClass* new_class;
-    JsPrimitive* new_primitive;
-
-    new_class = &classes[numClass++];
-    new_primitive = &primitive[numPrimitive++];
-
-    new_class->unk_0 = a0;
-    new_primitive->unk_0 = 7;
-    new_primitive->unk_4 = a0;
-    new_primitive->unk_8 = new_class;
-    return new_class;
-}
-#endif
 
 s32 JS_loadConstInteger(s32 a0, s32 a1)
 {
@@ -81,7 +63,35 @@ void JS_classAddMethod(JsClass* InClass, s32 a1, s32 a2)
     method->unk_8 = a2;
 }
 
-INCLUDE_ASM("asm/nonmatchings/game/JS", JS_findObject);
+extern JsPrimitive js_type_int;
+extern JsPrimitive js_type_float;
+extern JsPrimitive js_type_string;
+s32 strcmp(const char*, const char*);
+char* strchr(const char*, s32);
+
+JsPrimitive* JS_findObject(const char* name, JsPrimitive* arr, s32 count)
+{
+    s32 i;
+    char c, d;
+
+    for (i = 0; i < count; i++, arr++)
+    {
+        if (arr->unk_4 != 0 && strcmp((char*)arr->unk_4, name) == 0)
+        {
+            return arr;
+        }
+    }
+
+    c = name[0];
+    d = name[1];
+    if ((u32)(c - '0') < 10 || (c == '-' && (u32)(d - '0') < 10))
+    {
+        if (strchr(name, '.') != NULL) return &js_type_float;
+        return &js_type_int;
+    }
+    if (c == '"') return &js_type_string;
+    return NULL;
+}
 
 INCLUDE_ASM("asm/nonmatchings/game/JS", JS_callMethod);
 
