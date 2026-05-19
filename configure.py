@@ -33,7 +33,15 @@ COMPILER_DIR = f"{TOOLS_DIR}/cc/ee-gcc2.96/bin"
 COMPILER_FLAGS = "-O2 -Wa,-Iinclude"
 COMPILER_FLAGS_CPP = "-O2 c++"
 
-COMPILE_CMD = f"{COMPILER_DIR}/ee-gcc -c {COMMON_INCLUDES} {COMPILER_FLAGS}"
+# Per-file compiler flag overrides. Maps source path (as string) to the flags
+# to use in place of COMPILER_FLAGS. Used when a specific TU needs a different
+# optimization recipe to byte-match the target.
+PER_FILE_CFLAGS: Dict[str, str] = {
+    # Example:
+    # "src/xgl/thread.c": "-O2 -fno-rerun-loop-opt -Wa,-Iinclude",
+}
+
+COMPILE_CMD = f"{COMPILER_DIR}/ee-gcc -c {COMMON_INCLUDES} $cflags"
 COMPILE_CMD_CPP = f"{COMPILER_DIR}/ee-gcc -c {COMMON_INCLUDES} {COMPILER_FLAGS_CPP}"
 
 WIBO_VER = "0.6.11"
@@ -153,6 +161,7 @@ def build_stuff(linker_entries: List[LinkerEntry]):
         command=f"{COMPILE_CMD_CPP} $in -o $out && {cross}strip $out -N dummy-symbol-name",
     )
 
+    ninja.variable("cflags", COMPILER_FLAGS)
     ninja.rule(
         "cc",
         description="cc $in",
@@ -207,7 +216,13 @@ def build_stuff(linker_entries: List[LinkerEntry]):
                 "decompctx",
             )
         elif isinstance(seg, splat.segtypes.common.c.CommonSegC):
-            build(entry.object_path, entry.src_paths, "cc")
+            cc_vars: Dict[str, str] = {}
+            for sp in entry.src_paths:
+                override = PER_FILE_CFLAGS.get(str(sp))
+                if override:
+                    cc_vars["cflags"] = override
+                    break
+            build(entry.object_path, entry.src_paths, "cc", variables=cc_vars)
             build(
                 entry.object_path.parent / f"{seg.name}.ctx",
                 entry.src_paths,

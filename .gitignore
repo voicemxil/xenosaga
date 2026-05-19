@@ -73,6 +73,15 @@ SLUS_204.69.*
 
 objdiff.json
 
+# Alternate ee-gcc revisions downloaded for testing — never commit
+/tools/cc-alt
+
+# Ghidra project files (local reverse-engineering scratch)
+*.gpr
+*.lock
+*.lock~~
+*.rep/
+
 # decomp_permuter configuration
 permuter_settings.toml
 /nonmatchings
