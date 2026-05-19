@@ -97,7 +97,44 @@ INCLUDE_ASM("asm/nonmatchings/game/JS", JS_callMethod);
 
 INCLUDE_ASM("asm/nonmatchings/game/JS", JS_checkArgs);
 
+// WIP — 88% matched, jumps to 97% with `volatile u32 numPrimitive` but
+// that change regresses JS_init (which also uses numPrimitive). Need
+// per-function granularity that doesn't exist in C.
+#if 0
+extern u8 D_004DA590[];
+
+void JS_exec(char* script, s32 a1)
+{
+    char buf[0x400];
+    char tmp[0x200];
+    char* line_ptr;
+    char* token;
+    u32 type;
+    JsPrimitive* obj;
+
+    line_ptr = script;
+    while ((line_ptr = STR_getLine(buf, line_ptr, a1)) != NULL)
+    {
+        token = STR_tokenGetNext(buf, (char*)D_004DA590);
+        type = STR_tokenGetType();
+        while (token != NULL)
+        {
+            strcpy(tmp, token);
+            STR_trim(tmp);
+            obj = JS_findObject(tmp, primitive, numPrimitive);
+            if (obj != NULL && obj->unk_0 == 7 && obj->unk_8 != 0)
+            {
+                JS_callMethod(0, type);
+            }
+            token = STR_tokenGetNext(buf, (char*)D_004DA590);
+            type = STR_tokenGetType();
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/game/JS", JS_exec);
+#endif
+
 
 u32 STR_tokenGetType()
 {
