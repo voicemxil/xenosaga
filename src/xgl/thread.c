@@ -18,18 +18,14 @@ typedef struct
 UnkThreadEntry asActiveThreadList[20];
 UnkThreadEntry asSystemThreadList[4];
 
-// Matches, Needs data migration
-#if 1
-INCLUDE_ASM("asm/nonmatchings/xgl/thread", xglCreateSignal);
-#else
+extern struct SemaParam sSemaParam;
+
 s32 xglCreateSignal()
 {
-    static struct SemaParam sSemaParam;
     sSemaParam.maxCount = 1;
     sSemaParam.initCount = 0;
     return CreateSema(&sSemaParam);
 }
-#endif
 
 void xglThreadRotate()
 {
@@ -51,39 +47,32 @@ void xglSleep()
     SleepThread();
 }
 
-// WIP
-#if 1
-INCLUDE_ASM("asm/nonmatchings/xgl/thread", xglThreadInitial);
-#else
+extern struct ThreadParam sThreadParam;
+
+// Matched. Unusual constructs are required to coax ee-gcc2.96 into the
+// target's instruction scheduling: `(*(&x[i])).field` defeats CSE of two
+// writes that compute the same value, and `new_var` plus split stores
+// influence which field becomes the strided induction variable.
 void xglThreadInitial()
 {
-    static struct ThreadParam sThreadParam;
     void* next_stack = (void*)0x1f8000;
-    void* gp = _gp;
-    s32 i;
+    s32 new_var;
+    u32 i;
 
     for (i = 0; i < 4; i++)
     {
-        // sThreadParam.entry = asSystemThreadList[i].entry;
-        // asActiveThreadList[i].entry = sThreadParam.entry;
-        // sThreadParam.stack = next_stack - sThreadParam.stackSize;
-        // asActiveThreadList[i].stack = sThreadParam.stack;
-        // sThreadParam.stackSize = asSystemThreadList[i].stackSize;
-        // asActiveThreadList[i].stackSize = sThreadParam.stackSize;
-
-        // asActiveThreadList[i].entry = sThreadParam.entry = asSystemThreadList[i].entry;
-        // asActiveThreadList[i].stack = sThreadParam.stack = next_stack -
-        // asSystemThreadList[i].stack; asActiveThreadList[i].stackSize = sThreadParam.stackSize =
-        // asSystemThreadList[i].stackSize;
-
-        sThreadParam.gpReg = gp;
-        sThreadParam.initPriority = asSystemThreadList[i].initPriority;
-
-        sThreadParam.entry = asActiveThreadList[i].entry = asSystemThreadList[i].entry;
-
-        sThreadParam.stack = asActiveThreadList[i].stack = next_stack - asSystemThreadList[i].stack;
-        sThreadParam.stackSize = asActiveThreadList[i].stackSize = asSystemThreadList[i].stackSize;
-
+        asActiveThreadList[i].entry = asSystemThreadList[i].entry;
+        new_var = asSystemThreadList[i].stackSize;
+        sThreadParam.stack = next_stack - asSystemThreadList[i].stackSize;
+        asActiveThreadList[i].stackSize = new_var;
+        sThreadParam.stackSize = asSystemThreadList[i].stackSize;
+        (*(&asActiveThreadList[i])).stack = next_stack;
+        (*(&asActiveThreadList[i])).stack = (*(&asActiveThreadList[i])).stack - asSystemThreadList[i].stackSize;
+        sThreadParam.initPriority = (asActiveThreadList[i].initPriority = asSystemThreadList[i].initPriority);
+        sThreadParam.entry = asSystemThreadList[i].entry;
+        sThreadParam.stack = next_stack;
+        sThreadParam.stack = sThreadParam.stack - asSystemThreadList[i].stackSize;
+        sThreadParam.gpReg = (void*)&_gp;
         asActiveThreadList[i].id = CreateThread(&sThreadParam);
         StartThread(asActiveThreadList[i].id, 0);
         next_stack -= asSystemThreadList[i].stackSize;
@@ -91,4 +80,3 @@ void xglThreadInitial()
 
     iCurrentThread = 0;
 }
-#endif
