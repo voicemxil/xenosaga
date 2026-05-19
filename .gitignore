@@ -58,6 +58,13 @@ SLUS_204.69.*
 
 *.iso
 
+# Game rip — keep the iso/ placeholder dir but never commit its contents
+/iso/*
+!/iso/.gitkeep
+
+# Windows alternate-data-stream metadata (WSL)
+*:Zone.Identifier
+
 /venv
 /asm
 /assets
