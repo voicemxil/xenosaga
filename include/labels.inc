@@ -24,3 +24,14 @@
 #endif
     \label:
 .endm
+
+.macro nonmatching label, size
+.endm
+
+.macro enddlabel label
+.endm
+
+.macro ehlabel label
+    .global \label
+    \label:
+.endm
